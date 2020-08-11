@@ -45,6 +45,7 @@ pub fn test(wasm_file: &str) -> Result<Tester> {
         AbiVersion::ProxyAbiVersion0_2_0 => {
             impl CallbackV2 for Tester {};
         }
+        _ => panic!("test-framework does not support proxy-wasm modules of this abi version"),
     }
 
     let tester = Tester::new(abi_version, instance, host_settings, expectations);
@@ -56,7 +57,6 @@ pub struct Tester {
     instance: Instance,
     defaults: Arc<Mutex<HostHandle>>,
     expect: Arc<Mutex<ExpectHandle>>,
-    callback: CallbackType,
 }
 
 impl Tester {
@@ -71,8 +71,15 @@ impl Tester {
             instance: instance,
             defaults: host_settings,
             expect: expect,
-            callback: CallbackType::new(),
         }
+    }
+
+    pub fn execute_and_expect(&mut self, expect_wasm: ReturnType) -> Result<()> {
+        let callback_result = execute_and_expect(&self.instance, expect_wasm);
+        self.assert_expect_stage();
+        self.update_expect_stage();
+        println!("\n");
+        callback_result
     }
 
     /* ------------------------------------- Low-level Expectation Setting ------------------------------------- */
@@ -245,306 +252,5 @@ impl Tester {
 
     pub fn reset_host_settings(&mut self) {
         self.defaults.lock().unwrap().reset(self.abi_version);
-    }
-
-    /* ------------------------------------- Wasm Function Executation ------------------------------------- */
-
-    pub fn execute_and_expect(&mut self, expect_wasm: ReturnType) -> Result<()> {
-        assert_ne!(self.function_call, FunctionCall::FunctionNotSet);
-        assert_ne!(self.function_type, FunctionType::ReturnNotSet);
-
-        let mut return_wasm: Option<i32> = None;
-        match self.function_call {
-            FunctionCall::Start() => {
-                let _start = self
-                    .instance
-                    .get_func("_start")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `_start` function export"
-                    ))?
-                    .get0::<()>()?;
-                _start()?;
-            }
-
-            FunctionCall::ProxyOnContextCreate(root_context_id, parent_context_id) => {
-                let proxy_on_context_create = self
-                    .instance
-                    .get_func("proxy_on_context_create")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_context_create` function export"
-                    ))?
-                    .get2::<i32, i32, ()>()?;
-                proxy_on_context_create(root_context_id, parent_context_id)?;
-            }
-
-            FunctionCall::ProxyOnDone(context_id) => {
-                let proxy_on_done = self
-                    .instance
-                    .get_func("proxy_on_done")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_done' function export"
-                    ))?
-                    .get1::<i32, i32>()?;
-                let is_done = proxy_on_done(context_id)?;
-                println!("RETURN:    is_done -> {}", is_done);
-                return_wasm = Some(is_done);
-            }
-
-            FunctionCall::ProxyOnLog(context_id) => {
-                let proxy_on_log = self
-                    .instance
-                    .get_func("proxy_on_log")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_log` function export"
-                    ))?
-                    .get1::<i32, ()>()?;
-                proxy_on_log(context_id)?;
-            }
-
-            FunctionCall::ProxyOnDelete(context_id) => {
-                let proxy_on_delete = self
-                    .instance
-                    .get_func("proxy_on_delete")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_delete' function export"
-                    ))?
-                    .get1::<i32, ()>()?;
-                proxy_on_delete(context_id)?;
-            }
-
-            FunctionCall::ProxyOnVmStart(context_id, vm_configuration_size) => {
-                let proxy_on_vm_start = self
-                    .instance
-                    .get_func("proxy_on_vm_start")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_vm_start` function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let success = proxy_on_vm_start(context_id, vm_configuration_size)?;
-                println!("RETURN:    success -> {}", success);
-                return_wasm = Some(success);
-            }
-
-            FunctionCall::ProxyOnConfigure(context_id, plugin_configuration_size) => {
-                let proxy_on_configure = self
-                    .instance
-                    .get_func("proxy_on_configure")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_configure' function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let success = proxy_on_configure(context_id, plugin_configuration_size)?;
-                println!("RETURN:    success -> {}", success);
-                return_wasm = Some(success);
-            }
-
-            FunctionCall::ProxyOnTick(context_id) => {
-                let proxy_on_tick = self
-                    .instance
-                    .get_func("proxy_on_tick")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_tick` function export"
-                    ))?
-                    .get1::<i32, ()>()?;
-                proxy_on_tick(context_id)?;
-            }
-
-            FunctionCall::ProxyOnQueueReady(context_id, queue_id) => {
-                let proxy_on_queue_ready = self
-                    .instance
-                    .get_func("proxy_on_queue_ready")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_queue_ready' function export"
-                    ))?
-                    .get2::<i32, i32, ()>()?;
-                proxy_on_queue_ready(context_id, queue_id)?;
-            }
-
-            FunctionCall::ProxyOnNewConnection(context_id) => {
-                let proxy_on_new_connection = self
-                    .instance
-                    .get_func("proxy_on_new_connection")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_new_connection' function export"
-                    ))?
-                    .get1::<i32, i32>()?;
-                let action = proxy_on_new_connection(context_id)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnDownstreamData(context_id, data_size, end_of_stream) => {
-                let proxy_on_downstream_data = self
-                    .instance
-                    .get_func("proxy_on_downstream_data")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_downstream_data' function export"
-                    ))?
-                    .get3::<i32, i32, i32, i32>()?;
-                let action = proxy_on_downstream_data(context_id, data_size, end_of_stream)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnDownstreamConnectionClose(context_id, peer_type) => {
-                let proxy_on_downstream_connection_close = self
-                    .instance
-                    .get_func("proxy_on_downstream_connection_close")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_downstream_connection_close' function export"
-                    ))?
-                    .get2::<i32, i32, ()>()?;
-                proxy_on_downstream_connection_close(context_id, peer_type)?;
-            }
-
-            FunctionCall::ProxyOnUpstreamData(context_id, data_size, end_of_stream) => {
-                let proxy_on_upstream_data = self
-                    .instance
-                    .get_func("proxy_on_upstream_data")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_upstream_data' function export"
-                    ))?
-                    .get3::<i32, i32, i32, i32>()?;
-                let action = proxy_on_upstream_data(context_id, data_size, end_of_stream)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnUpstreamConnectionClose(context_id, peer_type) => {
-                let proxy_on_upstream_connection_close = self
-                    .instance
-                    .get_func("proxy_on_upstream_connection_close")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_upstream_connection_close' function export"
-                    ))?
-                    .get2::<i32, i32, ()>()?;
-                proxy_on_upstream_connection_close(context_id, peer_type)?;
-            }
-
-            FunctionCall::ProxyOnRequestHeaders(context_id, num_headers) => {
-                let proxy_on_request_headers = self
-                    .instance
-                    .get_func("proxy_on_request_headers")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_request_headers` function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let action = proxy_on_request_headers(context_id, num_headers)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnRequestBody(context_id, body_size, end_of_stream) => {
-                let proxy_on_request_body = self
-                    .instance
-                    .get_func("proxy_on_request_body")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_request_body' function export"
-                    ))?
-                    .get3::<i32, i32, i32, i32>()?;
-                let action = proxy_on_request_body(context_id, body_size, end_of_stream)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnRequestTrailers(context_id, num_trailers) => {
-                let proxy_on_request_trailers = self
-                    .instance
-                    .get_func("proxy_on_request_trailers")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_request_trailers` function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let action = proxy_on_request_trailers(context_id, num_trailers)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnResponseHeaders(context_id, num_headers) => {
-                let proxy_on_response_headers = self
-                    .instance
-                    .get_func("proxy_on_response_headers")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_response_headers` function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let action = proxy_on_response_headers(context_id, num_headers)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnResponseBody(context_id, body_size, end_of_stream) => {
-                let proxy_on_response_body = self
-                    .instance
-                    .get_func("proxy_on_response_body")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find 'proxy_on_response_body' function export"
-                    ))?
-                    .get3::<i32, i32, i32, i32>()?;
-                let action = proxy_on_response_body(context_id, body_size, end_of_stream)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnResponseTrailers(context_id, num_trailers) => {
-                let proxy_on_response_trailers = self
-                    .instance
-                    .get_func("proxy_on_response_trailers")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_response_trailers` function export"
-                    ))?
-                    .get2::<i32, i32, i32>()?;
-                let action = proxy_on_response_trailers(context_id, num_trailers)?;
-                println!("RETURN:    action -> {}", action);
-                return_wasm = Some(action);
-            }
-
-            FunctionCall::ProxyOnHttpCallResponse(
-                context_id,
-                callout_id,
-                num_headers,
-                body_size,
-                num_trailers,
-            ) => {
-                let proxy_on_http_call_response = self
-                    .instance
-                    .get_func("proxy_on_http_call_response")
-                    .ok_or(anyhow::format_err!(
-                        "failed to find `proxy_on_http_call_response` function export"
-                    ))?
-                    .get5::<i32, i32, i32, i32, i32, ()>()?;
-                proxy_on_http_call_response(
-                    context_id,
-                    callout_id,
-                    num_headers,
-                    body_size,
-                    num_trailers,
-                )?;
-            }
-
-            _ => panic!("No function with name: {:?}", self.function_call),
-        }
-
-        match expect_wasm {
-            ReturnType::None => {
-                assert_eq!(self.function_type, FunctionType::ReturnEmpty);
-                assert_eq!(return_wasm.is_none(), true);
-            }
-            ReturnType::Bool(expect_bool) => {
-                assert_eq!(self.function_type, FunctionType::ReturnBool);
-                assert_eq!(expect_bool as i32, return_wasm.unwrap_or(-1));
-            }
-            ReturnType::Action(expect_action) => {
-                assert_eq!(self.function_type, FunctionType::ReturnAction);
-                assert_eq!(expect_action as i32, return_wasm.unwrap_or(-1))
-            }
-        }
-
-        self.function_call = FunctionCall::FunctionNotSet;
-        self.function_type = FunctionType::ReturnNotSet;
-        self.assert_expect_stage();
-        self.update_expect_stage();
-        println!("\n");
-        return Ok(());
     }
 }
