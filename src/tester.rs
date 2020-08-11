@@ -37,6 +37,16 @@ pub fn test(wasm_file: &str) -> Result<Tester> {
     let instance = Instance::new(&store, &module, &(*imports).lock().unwrap()[..])?;
 
     // create mock test proxy-wasm object
+    impl CallbackBase for Tester {};
+    match abi_version {
+        AbiVersion::ProxyAbiVersion0_1_0 => {
+            impl CallbackV1 for Tester {};
+        }
+        AbiVersion::ProxyAbiVersion0_2_0 => {
+            impl CallbackV2 for Tester {};
+        }
+    }
+
     let tester = Tester::new(abi_version, instance, host_settings, expectations);
     return Ok(tester);
 }
@@ -46,6 +56,7 @@ pub struct Tester {
     instance: Instance,
     defaults: Arc<Mutex<HostHandle>>,
     expect: Arc<Mutex<ExpectHandle>>,
+    callback: CallbackType,
 }
 
 impl Tester {
@@ -60,6 +71,7 @@ impl Tester {
             instance: instance,
             defaults: host_settings,
             expect: expect,
+            callback: CallbackType::new(),
         }
     }
 
