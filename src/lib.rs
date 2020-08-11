@@ -19,6 +19,7 @@ pub mod tester;
 pub mod types;
 pub mod utility;
 
+mod callback;
 mod expect_interface;
 mod expectations;
 mod host_settings;
