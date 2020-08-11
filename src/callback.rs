@@ -23,7 +23,7 @@ lazy_static! {
     static ref CALLBACK: Arc<Mutex<CallbackType>> = Arc::new(Mutex::new(CallbackType::new()));
 }
 
-pub fn clone_callback() -> Arc<Mutex<CallbackType>> {
+pub fn _clone_callback() -> Arc<Mutex<CallbackType>> {
     CALLBACK.clone()
 }
 
@@ -497,6 +497,18 @@ pub fn execute_and_expect(instance: &Instance, expect_wasm: ReturnType) -> Resul
             let is_done = proxy_on_done(context_id)?;
             println!("RETURN:    is_done -> {}", is_done);
             return_wasm = Some(is_done);
+        }
+
+        CallbackProto::ProxyOnForeignFunction(root_context_id, function_id, data_size) => {
+            let proxy_on_foreign_function = instance
+                .get_func("proxy_on_foreign_function")
+                .ok_or(anyhow::format_err!(
+                    "failed to find 'proxy_on_foreign_function' function export"
+                ))?
+                .get3::<i32, i32, i32, i32>()?;
+            let action = proxy_on_foreign_function(root_context_id, function_id, data_size)?;
+            println!("RETURN:    action -> {}", action);
+            return_wasm = Some(action);
         }
 
         CallbackProto::ProxyOnLog(context_id) => {
