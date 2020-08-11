@@ -42,7 +42,7 @@ pub fn test(wasm_file: &str) -> Result<Tester> {
 }
 
 pub struct Tester {
-    abi_version: &'static str,
+    abi_version: AbiVersion,
     instance: Instance,
     defaults: Arc<Mutex<HostHandle>>,
     expect: Arc<Mutex<ExpectHandle>>,
@@ -50,7 +50,7 @@ pub struct Tester {
 
 impl Tester {
     fn new(
-        abi_version: &'static str,
+        abi_version: AbiVersion,
         instance: Instance,
         host_settings: Arc<Mutex<HostHandle>>,
         expect: Arc<Mutex<ExpectHandle>>,
