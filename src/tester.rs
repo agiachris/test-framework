@@ -21,11 +21,11 @@ use crate::settings_interface::*;
 use crate::types::*;
 
 use anyhow::Result;
-use std::boxed::Box;
+// use std::boxed::Box;
 use std::sync::{Arc, Mutex, MutexGuard};
 use wasmtime::*;
 
-pub fn test(wasm_file: &str) -> Result<Box<dyn CallbackBase>> {
+pub fn test(wasm_file: &str) -> Result<Tester> {
     // initialize wasm engine and shared cache
     let store = Store::default();
     let module = Module::from_file(store.engine(), wasm_file)?;

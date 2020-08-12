@@ -61,7 +61,7 @@ impl CallbackType {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum CallbackProto {
+pub enum CallbackProto {
     FunctionNotSet,
     Start(),
     ProxyOnContextCreate(i32, i32),
@@ -90,7 +90,7 @@ enum CallbackProto {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum CallbackReturn {
+pub enum CallbackReturn {
     ReturnNotSet,
     ReturnEmpty,
     ReturnBool,

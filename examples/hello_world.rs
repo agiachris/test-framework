@@ -14,6 +14,7 @@
 
 use anyhow::Result;
 use proxy_wasm_test_framework::{tester, types::*};
+use proxy_wasm_test_framework::callback::{CallbackBase};
 use std::env;
 
 fn main() -> Result<()> {
