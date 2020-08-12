@@ -97,7 +97,7 @@ pub enum CallbackReturn {
     ReturnAction,
 }
 
-pub trait CallbackBase {
+pub trait AbiCallbackBase {
     fn call_start(&mut self) -> &mut Self {
         println!("CALL TO:   _start");
         set_callback(CallbackProto::Start(), CallbackReturn::ReturnEmpty);
@@ -379,7 +379,7 @@ pub trait CallbackBase {
     /* ---------------------------------- Combination Calls ---------------------------------- */
 }
 
-pub trait CallbackV1: CallbackBase {
+pub trait AbiVersion0_1_0: AbiCallbackBase {
     fn call_proxy_on_request_headers(&mut self, context_id: i32, num_headers: i32) -> &mut Self {
         println!("CALL TO:   proxy_on_request_headers");
         println!(
@@ -407,7 +407,7 @@ pub trait CallbackV1: CallbackBase {
     }
 }
 
-pub trait CallbackV2: CallbackBase {
+pub trait AbiVersion0_2_0: AbiCallbackBase {
     fn call_proxy_on_request_headers(
         &mut self,
         context_id: i32,

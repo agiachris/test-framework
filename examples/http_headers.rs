@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use anyhow::Result;
+use proxy_wasm_test_framework::callback::AbiCallbackBase;
+use proxy_wasm_test_framework::callback::AbiVersion0_1_0;
 use proxy_wasm_test_framework::{tester, types::*};
-use proxy_wasm_test_framework::callback::{CallbackBase, CallbackV1};
 use std::env;
 
 fn main() -> Result<()> {

@@ -15,10 +15,10 @@
 #![crate_type = "lib"]
 #![crate_name = "proxy_wasm_test_framework"]
 
+pub mod callback;
 pub mod tester;
 pub mod types;
 pub mod utility;
-pub mod callback;
 
 mod expect_interface;
 mod expectations;

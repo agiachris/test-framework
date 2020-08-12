@@ -21,7 +21,6 @@ use crate::settings_interface::*;
 use crate::types::*;
 
 use anyhow::Result;
-// use std::boxed::Box;
 use std::sync::{Arc, Mutex, MutexGuard};
 use wasmtime::*;
 
@@ -38,13 +37,13 @@ pub fn test(wasm_file: &str) -> Result<Tester> {
     let instance = Instance::new(&store, &module, &(*imports).lock().unwrap()[..])?;
 
     // create mock test proxy-wasm object
-    impl CallbackBase for Tester {};
+    impl AbiCallbackBase for Tester {};
     match abi_version {
         AbiVersion::ProxyAbiVersion0_1_0 => {
-            impl CallbackV1 for Tester {};
+            impl AbiVersion0_1_0 for Tester {};
         }
         AbiVersion::ProxyAbiVersion0_2_0 => {
-            impl CallbackV2 for Tester {};
+            impl AbiVersion0_2_0 for Tester {};
         }
         _ => panic!("test-framework does not support proxy-wasm modules of this abi version"),
     }
